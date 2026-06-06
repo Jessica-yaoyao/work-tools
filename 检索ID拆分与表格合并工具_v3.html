@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>检索ID拆分与表格合并工具</title>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <style>
+    :root {
+      --blue: #2563eb;
+      --blue-dark: #1d4ed8;
+      --bg: #f4f6fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --danger: #ef4444;
+      --danger-soft: #fde8e8;
+      --soft: #eff6ff;
+      --success: #16a34a;
+      --success-soft: #e8f7ee;
+      --shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .container {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 28px 24px 48px;
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: 30px;
+      line-height: 1.2;
+      font-weight: 800;
+    }
+    .subtitle {
+      margin: 0 0 22px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+    .tabs {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 26px;
+      flex-wrap: wrap;
+    }
+    .tab-btn {
+      min-width: 300px;
+      border: 1px solid #d1d5db;
+      border-radius: 18px;
+      padding: 14px 20px;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      background: #fff;
+      cursor: pointer;
+      transition: .2s ease;
+      box-shadow: var(--shadow);
+    }
+    .tab-btn.active {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #fff;
+      border-color: transparent;
+    }
+    .panel {
+      display: none;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      box-shadow: var(--shadow);
+      padding: 30px;
+    }
+    .panel.active { display: block; }
+    h2 {
+      margin: 0 0 10px;
+      font-size: 24px;
+      line-height: 1.25;
+    }
+    .desc {
+      margin: 0 0 24px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+    .section-title {
+      font-size: 17px;
+      margin: 20px 0 10px;
+      font-weight: 800;
+    }
+    .file-row {
+      display: block;
+      margin-bottom: 20px;
+    }
+    input[type="file"] {
+      width: 100%;
+      padding: 14px;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      background: #fff;
+      font-size: 14px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 22px;
+      margin-bottom: 18px;
+    }
+    label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 8px;
+      font-size: 15px;
+    }
+    select, input[type="number"] {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      font-size: 15px;
+      background: #fff;
+    }
+    .btn-row {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin: 18px 0 20px;
+    }
+    .btn {
+      border: 0;
+      border-radius: 14px;
+      padding: 14px 22px;
+      font-size: 15px;
+      font-weight: 800;
+      cursor: pointer;
+      transition: .2s ease;
+    }
+    .btn.primary { background: var(--blue); color: #fff; }
+    .btn.primary:hover { background: var(--blue-dark); }
+    .btn.dark { background: #0f172a; color: #fff; }
+    .btn.dark:hover { background: #020617; }
+    .btn.light { background: #e8eefc; color: #1d4ed8; }
+    .btn.light:hover { background: #dbe7ff; }
+    .btn.danger { background: var(--danger-soft); color: #dc2626; }
+    .btn.danger:hover { background: #fbd5d5; }
+    .note-box, .summary-box {
+      background: #fafafa;
+      border: 1px dashed #d1d5db;
+      border-radius: 18px;
+      padding: 18px 20px;
+      margin: 12px 0 22px;
+    }
+    .summary-box p, .note-box p {
+      margin: 6px 0;
+      font-size: 15px;
+    }
+    .date-stats {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 12px;
+    }
+    .stat-card {
+      background: var(--soft);
+      border: 1px solid #dbeafe;
+      border-radius: 14px;
+      padding: 12px 14px;
+    }
+    .stat-card strong {
+      display: block;
+      font-size: 14px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+    .stat-card span {
+      font-size: 22px;
+      font-weight: 800;
+      color: #1d4ed8;
+    }
+    .copy-block {
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      background: #fff;
+      margin-bottom: 18px;
+      overflow: hidden;
+    }
+    .copy-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 18px;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--line);
+      flex-wrap: wrap;
+    }
+    .copy-head h3 {
+      margin: 0;
+      font-size: 16px;
+    }
+    .copy-head .meta {
+      color: var(--muted);
+      font-size: 14px;
+    }
+    .copy-btn {
+      border: 0;
+      border-radius: 12px;
+      background: var(--blue);
+      color: #fff;
+      font-weight: 800;
+      padding: 10px 16px;
+      cursor: pointer;
+    }
+    .copy-btn.copied {
+      background: var(--success);
+    }
+    textarea {
+      width: 100%;
+      min-height: 250px;
+      border: 0;
+      outline: none;
+      resize: vertical;
+      padding: 16px 18px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #111827;
+    }
+    .hidden { display: none !important; }
+    .merge-preview {
+      margin-top: 16px;
+      border-top: 1px dashed var(--line);
+      padding-top: 16px;
+    }
+    .merge-list {
+      margin: 8px 0 0;
+      padding-left: 18px;
+      color: var(--muted);
+    }
+    .footer-tip {
+      color: var(--muted);
+      font-size: 13px;
+      margin-top: 10px;
+    }
+    @media (max-width: 840px) {
+      .grid { grid-template-columns: 1fr; }
+      .panel { padding: 22px 18px; }
+      .tab-btn { min-width: unset; width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>检索ID拆分与表格合并工具</h1>
+    <p class="subtitle">本工具在浏览器本地运行：不会上传文件到服务器。适合处理“按自定义数量复制检索ID”和“多个结果表合并为一个表”。</p>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="splitTab">① 检索ID拆分复制</button>
+      <button class="tab-btn" data-tab="mergeTab">② 多个Excel合并</button>
+    </div>
+
+    <section id="splitTab" class="panel active">
+      <h2>① 检索ID拆分复制</h2>
+      <p class="desc">支持 .xlsx / .xls / .csv。默认读取第一个工作表，并优先识别列名包含“检索id / 搜索ID / id / ID”的列。为避免长数字变形，所有 ID 都按文本处理。</p>
+
+      <div class="section-title">上传包含检索ID的表格</div>
+      <div class="file-row">
+        <input type="file" id="splitFile" accept=".xlsx,.xls,.csv" />
+      </div>
+
+      <div class="grid">
+        <div>
+          <label for="groupSize">每组数量</label>
+          <input type="number" id="groupSize" min="1" step="1" value="2000" />
+        </div>
+        <div>
+          <label for="idColumnSelect">ID列选择</label>
+          <select id="idColumnSelect"></select>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div>
+          <label for="dateColumnSelect">日期列选择</label>
+          <select id="dateColumnSelect"></select>
+        </div>
+        <div>
+          <label>&nbsp;</label>
+          <div class="footer-tip">可选：用于读取后统计不同日期的数据量，方便核对，不影响拆分结果。</div>
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn primary" id="readSplitBtn">读取表格</button>
+        <button class="btn dark" id="generateBlocksBtn">生成复制块</button>
+        <button class="btn light" id="downloadAllTxtBtn">下载全部分组文本</button>
+        <button class="btn danger" id="clearSplitBtn">清除当前内容</button>
+      </div>
+
+      <div id="splitSummary" class="summary-box hidden"></div>
+      <div id="dateStatsWrap" class="summary-box hidden">
+        <strong>日期维度统计</strong>
+        <div id="dateStats" class="date-stats"></div>
+      </div>
+      <div id="copyBlocks"></div>
+    </section>
+
+    <section id="mergeTab" class="panel">
+      <h2>② 多个Excel合并</h2>
+      <p class="desc">支持一次上传多个 .xlsx / .xls / .csv 文件。默认读取每个文件的第一个工作表，以第一个文件的表头为准，后续文件自动跳过重复表头并纵向合并。</p>
+
+      <div class="section-title">上传多个结果表</div>
+      <div class="file-row">
+        <input type="file" id="mergeFiles" accept=".xlsx,.xls,.csv" multiple />
+      </div>
+
+      <div class="btn-row">
+        <button class="btn primary" id="readMergeBtn">读取文件</button>
+        <button class="btn dark" id="downloadMergedBtn">下载合并结果</button>
+        <button class="btn danger" id="clearMergeBtn">清除当前内容</button>
+      </div>
+
+      <div id="mergeSummary" class="summary-box hidden"></div>
+      <div id="mergePreview" class="merge-preview hidden">
+        <strong>文件读取结果</strong>
+        <ul id="mergeFileList" class="merge-list"></ul>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    const panels = document.querySelectorAll('.panel');
+    tabButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabButtons.forEach(b => b.classList.remove('active'));
+        panels.forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    const splitState = {
+      workbook: null,
+      fileName: '',
+      rows: [],
+      headers: [],
+      ids: [],
+      dateStats: {},
+      idCol: 0,
+      dateCol: -1,
+      blocks: []
+    };
+
+    const mergeState = {
+      mergedRows: [],
+      fileSummaries: [],
+      outputName: '合并结果.xlsx'
+    };
+
+    function excelDateToJSDate(serial) {
+      const utcDays = Math.floor(serial - 25569);
+      const utcValue = utcDays * 86400;
+      const dateInfo = new Date(utcValue * 1000);
+      const fractionalDay = serial - Math.floor(serial) + 0.0000001;
+      let totalSeconds = Math.floor(86400 * fractionalDay);
+      const seconds = totalSeconds % 60;
+      totalSeconds -= seconds;
+      const hours = Math.floor(totalSeconds / (60 * 60));
+      const minutes = Math.floor(totalSeconds / 60) % 60;
+      return new Date(dateInfo.getFullYear(), dateInfo.getMonth(), dateInfo.getDate(), hours, minutes, seconds);
+    }
+
+    function normalizeDateValue(value) {
+      if (value === null || value === undefined || value === '') return '';
+      if (value instanceof Date && !isNaN(value)) {
+        return `${value.getFullYear()}-${String(value.getMonth()+1).padStart(2,'0')}-${String(value.getDate()).padStart(2,'0')}`;
+      }
+      if (typeof value === 'number' && value > 20000 && value < 70000) {
+        const d = excelDateToJSDate(value);
+        return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+      }
+      const str = String(value).trim();
+      if (!str) return '';
+      const direct = str.match(/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/);
+      if (direct) {
+        return `${direct[1]}-${String(direct[2]).padStart(2,'0')}-${String(direct[3]).padStart(2,'0')}`;
+      }
+      return str;
+    }
+
+    function safeCellToText(value) {
+      if (value === null || value === undefined) return '';
+      if (typeof value === 'number') {
+        if (Number.isInteger(value)) return String(value);
+        return String(value);
+      }
+      if (value instanceof Date) return normalizeDateValue(value);
+      return String(value).trim();
+    }
+
+    function detectLikelyColumn(headers, keywords, fallback = 0) {
+      const normalized = headers.map((h, idx) => ({ idx, text: String(h || '').trim().toLowerCase() }));
+      for (const kw of keywords) {
+        const hit = normalized.find(item => item.text.includes(kw.toLowerCase()));
+        if (hit) return hit.idx;
+      }
+      return fallback;
+    }
+
+    async function readWorkbookFromFile(file) {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(buffer, { type: 'array', cellDates: true, raw: true });
+      return workbook;
+    }
+
+    function sheetToRows(workbook, sheetName) {
+      const ws = workbook.Sheets[sheetName];
+      return XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    }
+
+    function populateSelect(selectEl, headers, selectedIdx) {
+      selectEl.innerHTML = '';
+      headers.forEach((h, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.textContent = `${idx + 1}. ${h || '(空列)'}`;
+        if (idx === selectedIdx) opt.selected = true;
+        selectEl.appendChild(opt);
+      });
+      const noneOpt = document.createElement('option');
+      noneOpt.value = -1;
+      noneOpt.textContent = '不使用';
+      if (selectedIdx === -1) noneOpt.selected = true;
+      selectEl.appendChild(noneOpt);
+    }
+
+    function clearSplitUI() {
+      splitState.workbook = null;
+      splitState.fileName = '';
+      splitState.rows = [];
+      splitState.headers = [];
+      splitState.ids = [];
+      splitState.dateStats = {};
+      splitState.blocks = [];
+      document.getElementById('splitFile').value = '';
+      document.getElementById('idColumnSelect').innerHTML = '';
+      document.getElementById('dateColumnSelect').innerHTML = '';
+      document.getElementById('splitSummary').classList.add('hidden');
+      document.getElementById('splitSummary').innerHTML = '';
+      document.getElementById('dateStatsWrap').classList.add('hidden');
+      document.getElementById('dateStats').innerHTML = '';
+      document.getElementById('copyBlocks').innerHTML = '';
+    }
+
+    document.getElementById('clearSplitBtn').addEventListener('click', clearSplitUI);
+
+    document.getElementById('readSplitBtn').addEventListener('click', async () => {
+      const file = document.getElementById('splitFile').files[0];
+      if (!file) {
+        alert('请先选择一个表格文件。');
+        return;
+      }
+      try {
+        const workbook = await readWorkbookFromFile(file);
+        const firstSheetName = workbook.SheetNames[0];
+        const rows = sheetToRows(workbook, firstSheetName);
+        if (!rows.length) {
+          alert('表格为空，无法读取。');
+          return;
+        }
+        const headers = rows[0].map(v => safeCellToText(v));
+        const idIdx = detectLikelyColumn(headers, ['检索id', '搜索id', 'id'], 0);
+        const dateIdx = detectLikelyColumn(headers, ['提交时间', '日期', '时间'], -1);
+
+        splitState.workbook = workbook;
+        splitState.fileName = file.name;
+        splitState.rows = rows;
+        splitState.headers = headers;
+        splitState.idCol = idIdx;
+        splitState.dateCol = dateIdx;
+        splitState.ids = [];
+        splitState.blocks = [];
+
+        populateSelect(document.getElementById('idColumnSelect'), headers, idIdx);
+        populateSelect(document.getElementById('dateColumnSelect'), headers, dateIdx);
+
+        analyzeSplitData();
+      } catch (err) {
+        console.error(err);
+        alert('读取表格失败，请确认文件格式正确。');
+      }
+    });
+
+    function analyzeSplitData() {
+      const idCol = Number(document.getElementById('idColumnSelect').value);
+      const dateCol = Number(document.getElementById('dateColumnSelect').value);
+      const groupSize = Math.max(1, Number(document.getElementById('groupSize').value) || 2000);
+      const dataRows = splitState.rows.slice(1);
+      const ids = [];
+      const dateStats = {};
+      for (const row of dataRows) {
+        const idText = safeCellToText(row[idCol]);
+        if (!idText) continue;
+        ids.push(idText);
+        if (dateCol >= 0) {
+          const dateText = normalizeDateValue(row[dateCol]);
+          if (dateText) {
+            dateStats[dateText] = (dateStats[dateText] || 0) + 1;
+          }
+        }
+      }
+      splitState.idCol = idCol;
+      splitState.dateCol = dateCol;
+      splitState.ids = ids;
+      splitState.dateStats = dateStats;
+
+      const groupCount = Math.ceil(ids.length / groupSize);
+      const summary = document.getElementById('splitSummary');
+      summary.classList.remove('hidden');
+      summary.innerHTML = `
+        <p><strong>文件：</strong>${splitState.fileName}</p>
+        <p><strong>有效检索ID：</strong>${ids.length} 个</p>
+        <p><strong>分组数量：</strong>${groupCount} 组</p>
+        <p><strong>每组数量：</strong>${groupSize}，最后一组可能不足 ${groupSize}。</p>
+      `;
+
+      const dateWrap = document.getElementById('dateStatsWrap');
+      const dateStatsEl = document.getElementById('dateStats');
+      dateStatsEl.innerHTML = '';
+      if (dateCol >= 0 && Object.keys(dateStats).length) {
+        const entries = Object.entries(dateStats).sort((a, b) => a[0].localeCompare(b[0], 'zh-CN'));
+        entries.forEach(([d, count]) => {
+          const div = document.createElement('div');
+          div.className = 'stat-card';
+          div.innerHTML = `<strong>${d}</strong><span>${count}</span>`;
+          dateStatsEl.appendChild(div);
+        });
+        dateWrap.classList.remove('hidden');
+      } else {
+        dateWrap.classList.add('hidden');
+      }
+
+      document.getElementById('copyBlocks').innerHTML = '';
+    }
+
+    document.getElementById('idColumnSelect').addEventListener('change', () => {
+      if (splitState.rows.length) analyzeSplitData();
+    });
+    document.getElementById('dateColumnSelect').addEventListener('change', () => {
+      if (splitState.rows.length) analyzeSplitData();
+    });
+    document.getElementById('groupSize').addEventListener('change', () => {
+      if (splitState.rows.length) analyzeSplitData();
+    });
+
+    document.getElementById('generateBlocksBtn').addEventListener('click', () => {
+      if (!splitState.ids.length) {
+        alert('请先读取表格。');
+        return;
+      }
+      const groupSize = Math.max(1, Number(document.getElementById('groupSize').value) || 2000);
+      splitState.blocks = [];
+      for (let i = 0; i < splitState.ids.length; i += groupSize) {
+        splitState.blocks.push(splitState.ids.slice(i, i + groupSize));
+      }
+      renderCopyBlocks();
+    });
+
+    function renderCopyBlocks() {
+      const wrap = document.getElementById('copyBlocks');
+      wrap.innerHTML = '';
+      splitState.blocks.forEach((block, idx) => {
+        const start = idx * Number(document.getElementById('groupSize').value || 2000) + 1;
+        const end = start + block.length - 1;
+        const id = `copyBlock_${idx}`;
+        const div = document.createElement('div');
+        div.className = 'copy-block';
+        div.innerHTML = `
+          <div class="copy-head">
+            <div>
+              <h3>第 ${idx + 1} 组</h3>
+              <div class="meta">第 ${start} - ${end} 个，共 ${block.length} 个检索ID</div>
+            </div>
+            <button class="copy-btn" data-target="${id}">一键复制本组</button>
+          </div>
+          <textarea id="${id}" readonly>${block.join('\n')}</textarea>
+        `;
+        wrap.appendChild(div);
+      });
+
+      wrap.querySelectorAll('.copy-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const target = document.getElementById(btn.dataset.target);
+          try {
+            await navigator.clipboard.writeText(target.value);
+          } catch (err) {
+            target.select();
+            document.execCommand('copy');
+          }
+          const old = btn.textContent;
+          btn.textContent = '已复制';
+          btn.classList.add('copied');
+          setTimeout(() => {
+            btn.textContent = old;
+            btn.classList.remove('copied');
+          }, 1200);
+        });
+      });
+    }
+
+    document.getElementById('downloadAllTxtBtn').addEventListener('click', () => {
+      if (!splitState.ids.length) {
+        alert('请先读取表格。');
+        return;
+      }
+      const groupSize = Math.max(1, Number(document.getElementById('groupSize').value) || 2000);
+      const blocks = [];
+      for (let i = 0; i < splitState.ids.length; i += groupSize) {
+        blocks.push(splitState.ids.slice(i, i + groupSize));
+      }
+      let content = '';
+      blocks.forEach((block, idx) => {
+        const start = idx * groupSize + 1;
+        const end = start + block.length - 1;
+        content += `===== 第 ${idx + 1} 组（${start}-${end}，共 ${block.length} 个） =====\n`;
+        content += block.join('\n') + '\n\n';
+      });
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${splitState.fileName.replace(/\.[^.]+$/, '')}_分组文本.txt`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    function clearMergeUI() {
+      mergeState.mergedRows = [];
+      mergeState.fileSummaries = [];
+      document.getElementById('mergeFiles').value = '';
+      document.getElementById('mergeSummary').classList.add('hidden');
+      document.getElementById('mergeSummary').innerHTML = '';
+      document.getElementById('mergePreview').classList.add('hidden');
+      document.getElementById('mergeFileList').innerHTML = '';
+    }
+    document.getElementById('clearMergeBtn').addEventListener('click', clearMergeUI);
+
+    document.getElementById('readMergeBtn').addEventListener('click', async () => {
+      const files = Array.from(document.getElementById('mergeFiles').files || []);
+      if (!files.length) {
+        alert('请先选择至少一个文件。');
+        return;
+      }
+      try {
+        mergeState.mergedRows = [];
+        mergeState.fileSummaries = [];
+        let baseHeader = null;
+        let totalRows = 0;
+        for (const file of files) {
+          const workbook = await readWorkbookFromFile(file);
+          const firstSheetName = workbook.SheetNames[0];
+          const rows = sheetToRows(workbook, firstSheetName);
+          if (!rows.length) {
+            mergeState.fileSummaries.push({ name: file.name, rows: 0, sheet: firstSheetName });
+            continue;
+          }
+          const header = rows[0];
+          const data = rows.slice(1).filter(row => row.some(v => safeCellToText(v) !== ''));
+          if (!baseHeader) {
+            baseHeader = header;
+            mergeState.mergedRows.push(baseHeader);
+          }
+          totalRows += data.length;
+          mergeState.mergedRows.push(...data);
+          mergeState.fileSummaries.push({ name: file.name, rows: data.length, sheet: firstSheetName });
+        }
+
+        const summary = document.getElementById('mergeSummary');
+        summary.classList.remove('hidden');
+        summary.innerHTML = `
+          <p><strong>文件数量：</strong>${files.length} 个</p>
+          <p><strong>合并后数据行数：</strong>${Math.max(mergeState.mergedRows.length - 1, 0)} 行</p>
+          <p><strong>合并规则：</strong>使用第一个文件的表头，其余文件自动跳过表头后纵向拼接。</p>
+        `;
+
+        const preview = document.getElementById('mergePreview');
+        const list = document.getElementById('mergeFileList');
+        list.innerHTML = '';
+        mergeState.fileSummaries.forEach(item => {
+          const li = document.createElement('li');
+          li.textContent = `${item.name} ｜ 工作表：${item.sheet} ｜ 数据行：${item.rows}`;
+          list.appendChild(li);
+        });
+        preview.classList.remove('hidden');
+      } catch (err) {
+        console.error(err);
+        alert('读取文件失败，请确认文件格式正确。');
+      }
+    });
+
+    document.getElementById('downloadMergedBtn').addEventListener('click', () => {
+      if (!mergeState.mergedRows.length) {
+        alert('请先读取文件。');
+        return;
+      }
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(mergeState.mergedRows);
+      XLSX.utils.book_append_sheet(wb, ws, '合并结果');
+      XLSX.writeFile(wb, mergeState.outputName);
+    });
+  </script>
+</body>
+</html>
